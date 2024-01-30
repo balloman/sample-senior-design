@@ -1,5 +1,7 @@
 var builder = WebApplication.CreateBuilder(args);
 
+var customerMap = new Dictionary<Guid, Customer>();
+
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -25,29 +27,46 @@ if (app.Environment.IsDevelopment())
 app.UseCors("CorsPolicy");
 app.UseHttpsRedirection();
 
-var summaries = new[]
+app.MapPost("/customers", (CreateCustomerRequest request) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    var customer = new Customer
+    {
+        Id = Guid.NewGuid(),
+        Name = request.Name,
+        Email = request.Email
+    };
+    customerMap.Add(customer.Id, customer);
+    return Results.Ok(customer);
+});
 
-app.MapGet("/weatherforecast", () =>
+app.MapGet("/customers", () =>
 {
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast")
-.WithOpenApi();
+    return Results.Ok(customerMap.Values);
+});
+
+app.MapGet("/customers/{id}", (Guid id) =>
+{
+    var customer = customerMap.GetValueOrDefault(id);
+    if (customer is null)
+    {
+        return Results.NotFound();
+    }
+    return Results.Ok(customer);
+});
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
+record Customer
 {
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+    public Guid Id { get; init; }
+
+    public required string Name { get; init; }
+
+    public required string Email { get; init; }
+}
+
+record CreateCustomerRequest
+{
+    public required string Name { get; init; }
+    public required string Email { get; init; }
 }
